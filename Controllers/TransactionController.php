@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../Models/TransactionModel.php';
+require_once __DIR__ . '/../jwt_utils.php';
 
 class TransactionController
 {
@@ -13,15 +14,18 @@ class TransactionController
     // GET /transactions
     public function index()
     {
-        $user = $GLOBALS['auth_user'] ?? null;
+        $user = validateJWT(getBearerToken(), $_ENV['JWT_SECRET'] ?? 'sua_chave_secreta_super_segura_aqui_2024');
+        
         if (!$user || !isset($user['id'])) {
             http_response_code(401);
+            echo json_encode($user);
             echo json_encode(['error' => 'Usuário não autenticado']);
             return;
-        }
+        } 
         $transactions = $this->model->findByUser($user['id']);
         header('Content-Type: application/json');
         echo json_encode($transactions);
+        
     }
 
     // GET /transactions/{id}

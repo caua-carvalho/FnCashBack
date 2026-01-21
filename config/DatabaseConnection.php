@@ -1,4 +1,5 @@
 <?php
+require_once 'Database.php';
 /**
  * Gerenciador de Conexão com Banco de Dados
  * Implementa o padrão Singleton para garantir uma única conexão

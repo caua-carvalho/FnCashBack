@@ -25,6 +25,7 @@ require_once __DIR__ . '/Router.php';
 // Carrega controllers principais
 require_once __DIR__ . '/Controllers/HomeController.php';
 require_once __DIR__ . '/Controllers/TransactionController.php';
+require_once __DIR__ . '/Controllers/CreateTokenController.php';
 
 // Carrega helpers de middleware (JWT)
 require_once __DIR__ . '/middleware_helpers.php';
@@ -35,6 +36,7 @@ $router = new Router();
 // Rotas públicas
 $router->get('/', [HomeController::class, 'index']);
 $router->get('/about', [HomeController::class, 'about']);
+$router->get('/createToken', [CreateToken::class, 'index']);
 
 // Rotas protegidas por autenticação JWT
 $router->get('/transactions', [TransactionController::class, 'index']);

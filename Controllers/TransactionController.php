@@ -14,12 +14,12 @@ class TransactionController
     // GET /transactions
     public function index()
     {
-        $user = validateJWT(getBearerToken(), $_ENV['JWT_SECRET'] ?? 'sua_chave_secreta_super_segura_aqui_2024');
+        $user = $_GLOBALS['auth_user'] ?? null;
         
         if (!$user || !isset($user['id'])) {
             http_response_code(401);
             echo json_encode($user);
-            echo json_encode(['error' => 'Usuário não autenticado']);
+            echo json_encode(['error' => 'Usuário não autenticado', 'user' => $user]);
             return;
         } 
         $transactions = $this->model->findByUser($user['id']);
@@ -78,6 +78,77 @@ class TransactionController
             echo json_encode(['error' => $e->getMessage()]);
         }
     }
+
+    public function storeAudio()
+    {
+        $user = $GLOBALS['auth_user'] ?? null;
+
+        if (!$user || !isset($user['id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Usuário não autenticado']);
+            return;
+        }
+
+        if (!isset($_FILES['audio'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Arquivo de áudio não enviado']);
+            return;
+        }
+
+        $file = $_FILES['audio'];
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Erro no upload do áudio']);
+            return;
+        }
+
+        // Validação básica de MIME (não confie só nisso em produção)
+        $allowedMimeTypes = [
+            'audio/webm',
+            'audio/wav',
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/ogg',
+            'audio/m4a',
+            'audio/x-m4a',
+            'audio/mp4',
+        ];
+
+        if (!in_array($file['type'], $allowedMimeTypes, true)) {
+            http_response_code(415);
+            echo json_encode(['error' => 'Formato de áudio não suportado']);
+            return;
+        }
+
+        $userId = $user['id'];
+        $baseDir = __DIR__ . '/../uploads/audio/' . $userId;
+
+        if (!is_dir($baseDir)) {
+            mkdir($baseDir, 0777, true);
+        }
+
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'audio_' . time() . '.' . $extension;
+        $filepath = $baseDir . '/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao salvar o arquivo']);
+            return;
+        }
+
+        // URL relativa (ajuste conforme seu deploy)
+        $audioUrl = '/uploads/audio/' . $userId . '/' . $filename;
+
+        http_response_code(201);
+        echo json_encode([
+            'audio_url' => $audioUrl,
+            'mime_type' => $file['type'],
+            'size' => $file['size']
+        ]);
+    }
+
 
     // PUT /transactions/{id}
     public function update()

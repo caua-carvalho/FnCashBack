@@ -13,8 +13,17 @@ require_once __DIR__ . '/jwt_middleware.php';
  * @param callable|array $handler
  * @return callable
  */
-function withAuth($handler) {
-    return function() use ($handler) {
-        return jwtMiddleware($handler);
+function withAuth(array $handler)
+{
+    return function () use ($handler) {
+        return jwtMiddleware(function () use ($handler) {
+
+            [$controllerClass, $method] = $handler;
+
+            $controller = new $controllerClass();
+
+            return $controller->$method();
+        });
     };
 }
+

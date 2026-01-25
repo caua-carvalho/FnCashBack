@@ -14,7 +14,7 @@ class TransactionController
     // GET /transactions
     public function index()
     {
-        $user = $_GLOBALS['auth_user'] ?? null;
+        $user = $GLOBALS['auth_user'] ?? null;
         
         if (!$user || !isset($user['id'])) {
             http_response_code(401);
@@ -103,7 +103,7 @@ class TransactionController
             return;
         }
 
-        // Validação básica de MIME (não confie só nisso em produção)
+        // Validação básica de MIME
         $allowedMimeTypes = [
             'audio/webm',
             'audio/wav',
@@ -138,16 +138,48 @@ class TransactionController
             return;
         }
 
-        // URL relativa (ajuste conforme seu deploy)
-        $audioUrl = '/uploads/audio/' . $userId . '/' . $filename;
+        // Processa o áudio com Gemini
+        try {
+            require_once __DIR__ . '/../Service/GeminiAudioService.php';
+            $gemini = new \App\Service\GeminiAudioService('AIzaSyBNDFDofopjw3uzzcQ-pTWguDil89qzrBU');
+            $transactionData = $gemini->processAudio($filepath);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
 
-        http_response_code(201);
-        echo json_encode([
-            'audio_url' => $audioUrl,
-            'mime_type' => $file['type'],
-            'size' => $file['size']
-        ]);
+        echo json_encode($transactionData);
     }
+
+    public function create() {
+        $user = $GLOBALS['auth_user'] ?? null;
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$user || !isset($user['id'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Usuário não autenticado']);
+            return;
+        }
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Dados inválidos']);
+            return;
+        }
+        $data['user_id'] = $user['id'];
+        try {
+            $id = $this->model->create($data);
+            http_response_code(201);
+            echo json_encode([
+                'data'      => $data,
+                'erro'      => null,
+                'success'   => true
+            ]);
+
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
 
 
     // PUT /transactions/{id}

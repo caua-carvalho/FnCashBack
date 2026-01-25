@@ -41,7 +41,7 @@ $router->get('/createToken', [CreateToken::class, 'index']);
 // Rotas protegidas por autenticação JWT
 $router->get('/transactions', withAuth([TransactionController::class, 'index']));
 $router->get('/transactions/show', withAuth([TransactionController::class, 'show']));
-$router->post('/transactions', withAuth([TransactionController::class, 'store']));
+$router->post('/transactions', withAuth([TransactionController::class, 'create']));
 $router->post('/transactions/update', withAuth([TransactionController::class, 'update']));
 $router->post('/transactions/delete', withAuth([TransactionController::class, 'destroy']));
 

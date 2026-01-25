@@ -15,7 +15,7 @@ class TransactionModel extends BaseModel {
     // Campos permitidos para inserção/atualização em massa
     protected $fillable = [
         'user_id', 'amount', 'category', 'type', 'description', 'date',
-        'audio_url', 'audio_duration', 'confidence', 'created_at', 'updated_at', 'deleted_at'
+        'confidence', 'created_at', 'updated_at', 'deleted_at'
     ];
     // Campos ocultos ao retornar dados
     protected $hidden = [];

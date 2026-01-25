@@ -1,4 +1,3 @@
-
 <?php
 // Helper para aplicar o middleware JWT em rotas protegidas
 require_once __DIR__ . '/jwt_middleware.php';

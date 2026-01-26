@@ -1,5 +1,8 @@
 <?php
-// Ativa exibição de erros para ambiente de desenvolvimento
+
+declare(strict_types=1);
+
+// Erros
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -15,21 +18,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-
 header('Content-Type: application/json');
 
-// Carrega o roteador principal
-require_once __DIR__ . '/Router.php';
+// Raiz do projeto
+$root = dirname(__DIR__);
 
-// Carrega controllers principais
-require_once __DIR__ . '/Controllers/HomeController.php';
-require_once __DIR__ . '/Controllers/TransactionController.php';
-require_once __DIR__ . '/Controllers/CreateTokenController.php';
+// Core
+require_once $root . '/Router.php';
+require_once $root . '/middleware_helpers.php';
 
-// Carrega helpers de middleware (JWT)
-require_once __DIR__ . '/middleware_helpers.php';
+// Controllers
+require_once $root . '/Controllers/HomeController.php';
+require_once $root . '/Controllers/TransactionController.php';
+require_once $root . '/Controllers/CreateTokenController.php';
 
-// Instancia o roteador
+// Router
 $router = new Router();
 
 // Rotas públicas
@@ -37,16 +40,13 @@ $router->get('/', [HomeController::class, 'index']);
 $router->get('/about', [HomeController::class, 'about']);
 $router->get('/createToken', [CreateToken::class, 'index']);
 
-// Rotas protegidas por autenticação JWT
+// Rotas protegidas
 $router->get('/transactions', withAuth([TransactionController::class, 'index']));
 $router->get('/transactions/show', withAuth([TransactionController::class, 'show']));
 $router->post('/transactions', withAuth([TransactionController::class, 'create']));
 $router->post('/transactions/update', withAuth([TransactionController::class, 'update']));
 $router->post('/transactions/delete', withAuth([TransactionController::class, 'destroy']));
-
-// Transcription
 $router->post('/transactions/audio', withAuth([TransactionController::class, 'storeAudio']));
 
-
-// Inicia o roteamento (resolve a rota e executa o handler)
+// Dispatch
 $router->dispatch();

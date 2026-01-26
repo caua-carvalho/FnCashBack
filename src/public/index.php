@@ -1,4 +1,3 @@
-
 <?php
 // Ativa exibição de erros para ambiente de desenvolvimento
 ini_set('display_errors', 1);

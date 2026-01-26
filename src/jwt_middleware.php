@@ -1,4 +1,3 @@
-
 <?php
 // Middleware para validar JWT e fornecer informações do usuário autenticado
 // Inclua este arquivo antes de rotas que precisam de autenticação

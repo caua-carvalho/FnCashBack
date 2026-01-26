@@ -23,6 +23,8 @@ header('Content-Type: application/json');
 // Raiz do projeto
 $root = dirname(__DIR__);
 
+define('APP_ROOT', dirname(__DIR__));
+
 // Core
 require_once $root . '/Router.php';
 require_once $root . '/middleware_helpers.php';

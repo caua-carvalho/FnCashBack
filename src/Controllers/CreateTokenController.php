@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . "/../jwt_utils.php";
+require_once APP_ROOT . '/jwt_utils.php';
+
 
 class CreateToken
 {

@@ -1,6 +1,6 @@
 
 <?php
-require_once 'BaseModel.php';
+require_once APP_ROOT . '/Models/BaseModel.php';
 
 /**
  * Model TransactionModel

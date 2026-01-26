@@ -1,6 +1,6 @@
 
 <?php
-require_once __DIR__ . '/../config/DatabaseConnection.php';
+require_once APP_ROOT . '/config/DatabaseConnection.php';
 
 /**
  * Classe BaseModel

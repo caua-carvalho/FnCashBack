@@ -80,24 +80,27 @@ class TransactionController
         }
     }
 
-    public function storeAudio()
+    public function storeAudio(): void
     {
-        error_log('[TransactionController::storeAudio] Início da requisição');
+        error_log('[TransactionController::storeAudio] START');
 
+        /**
+         * Auth
+         */
         $user = $GLOBALS['auth_user'] ?? null;
 
-        if (!$user || !isset($user['id'])) {
-            error_log('[TransactionController::storeAudio] Usuário não autenticado');
+        if (!$user || empty($user['id'])) {
             http_response_code(401);
             echo json_encode(['error' => 'Usuário não autenticado']);
             return;
         }
 
         $userId = $user['id'];
-        error_log("[TransactionController::storeAudio] Usuário autenticado | user_id={$userId}");
 
-        if (!isset($_FILES['audio'])) {
-            error_log('[TransactionController::storeAudio] Nenhum arquivo enviado');
+        /**
+         * Upload validation
+         */
+        if (empty($_FILES['audio'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Arquivo de áudio não enviado']);
             return;
@@ -105,32 +108,29 @@ class TransactionController
 
         $file = $_FILES['audio'];
 
-        error_log('[TransactionController][storeAudio] FILE: ' . json_encode($_FILES));
-
-
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            error_log('[TransactionController::storeAudio] Erro no upload | code=' . $file['error']);
             http_response_code(400);
             echo json_encode(['error' => 'Erro no upload do áudio']);
             return;
         }
 
         /**
-         * Validação de MIME
+         * MIME real (não confie em $_FILES['type'])
          */
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime  = $finfo->file($file['tmp_name']);
+
         $allowedMimeTypes = [
             'audio/webm',
             'audio/wav',
             'audio/mpeg',
-            'audio/mp3',
             'audio/ogg',
-            'audio/m4a',
-            'audio/x-m4a',
             'audio/mp4',
+            'audio/x-m4a',
         ];
 
-        if (!in_array($file['type'], $allowedMimeTypes, true)) {
-            error_log("[TransactionController::storeAudio] MIME não suportado: {$file['type']}");
+        if (!in_array($mime, $allowedMimeTypes, true)) {
+            error_log("[storeAudio] MIME inválido: {$mime}");
             http_response_code(415);
             echo json_encode(['error' => 'Formato de áudio não suportado']);
             return;
@@ -139,71 +139,78 @@ class TransactionController
         /**
          * Diretório do usuário
          */
-        $baseDir = APP_ROOT . '/uploads/audio/' . $userId;
-
-        if (!is_dir($baseDir)) {
-            error_log("[TransactionController::storeAudio] Criando diretório: {$baseDir}");
-            if (!mkdir($baseDir, 0777, true) && !is_dir($baseDir)) {
-                error_log('[TransactionController::storeAudio] Falha ao criar diretório');
-                http_response_code(500);
-                echo json_encode(['error' => 'Falha ao preparar diretório de upload']);
-                return;
-            }
-        }
-
-        /**
-         * Geração do nome do arquivo
-         */
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = 'audio_' . time() . '.' . $extension;
-        $filepath = $baseDir . '/' . $filename;
-
-        error_log("[TransactionController::storeAudio] Salvando arquivo em {$filepath}");
-
-        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-            error_log('[TransactionController::storeAudio] move_uploaded_file falhou');
+        $baseDir = APP_ROOT . "/uploads/audio/{$userId}";
+        if (!is_dir($baseDir) && !mkdir($baseDir, 0775, true)) {
             http_response_code(500);
-            echo json_encode(['error' => 'Falha ao salvar o arquivo']);
+            echo json_encode(['error' => 'Falha ao criar diretório']);
             return;
         }
 
-        error_log('[TransactionController::storeAudio] Upload concluído com sucesso');
+        /**
+         * Arquivo original
+         */
+        $inputPath  = $baseDir . '/input_' . uniqid() . '.' . pathinfo($file['name'], PATHINFO_EXTENSION);
+        $outputPath = $baseDir . '/audio_' . uniqid() . '.wav';
+
+        if (!move_uploaded_file($file['tmp_name'], $inputPath)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao salvar áudio']);
+            return;
+        }
 
         /**
-         * Processamento com Gemini
+         * Normalização com FFmpeg
+         * - wav
+         * - mono
+         * - 16kHz (ideal para STT)
          */
-        try {
-            error_log('[TransactionController::storeAudio] Inicializando GeminiAudioService');
+        $cmd = sprintf(
+            'ffmpeg -y -i %s -ac 1 -ar 16000 %s 2>&1',
+            escapeshellarg($inputPath),
+            escapeshellarg($outputPath)
+        );
 
-            require_once APP_ROOT . '/Service/GeminiAudioService.php';
+        exec($cmd, $output, $exitCode);
 
-            // ⚠️ OBS: API key hardcoded é erro arquitetural (logando só para debug)
-            error_log('[TransactionController::storeAudio] Chamando processAudio');
-
-            $gemini = new \App\Service\GeminiAudioService(
-                $_ENV['GEMINI_API_KEY'] ?? 'API_KEY_NAO_DEFINIDA'
-            );
-
-            $transactionData = $gemini->processAudio($filepath);
-
-            error_log('[TransactionController::storeAudio] Gemini retornou dados válidos');
-            error_log('[TransactionController::storeAudio] Resultado: ' . json_encode($transactionData));
-        } catch (\Throwable $e) {
-            error_log('[TransactionController::storeAudio] ERRO Gemini: ' . $e->getMessage());
-            error_log($e->getTraceAsString());
-
+        if ($exitCode !== 0 || !file_exists($outputPath)) {
+            error_log('[storeAudio] FFmpeg error: ' . implode("\n", $output));
             http_response_code(500);
             echo json_encode(['error' => 'Falha ao processar áudio']);
             return;
         }
 
         /**
-         * Resposta final
+         * Processamento IA
          */
-        error_log('[TransactionController::storeAudio] Finalizando request com sucesso');
+        try {
+            require_once APP_ROOT . '/Service/GeminiAudioService.php';
 
-        echo json_encode($transactionData);
+            $gemini = new \App\Service\GeminiAudioService(
+                $_ENV['GEMINI_API_KEY'] ?? ''
+            );
+
+            $transactionData = $gemini->processAudio($outputPath);
+        } catch (\Throwable $e) {
+            error_log('[storeAudio] IA ERROR: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao processar áudio']);
+            return;
+        }
+
+        /**
+         * Cleanup opcional
+         */
+        @unlink($inputPath);
+
+        /**
+         * Response
+         */
+        echo json_encode([
+            'success' => true,
+            'data' => $transactionData
+        ]);
     }
+
 
 
     public function create() {

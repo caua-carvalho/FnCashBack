@@ -1,4 +1,3 @@
-
 <?php
 require_once APP_ROOT . '/config/DatabaseConnection.php';
 

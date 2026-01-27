@@ -63,6 +63,8 @@ class GeminiAudioService
         ]);
 
         $response = curl_exec($ch);
+
+        error_log("[GeminiAudioService] response bruto:" . $response)
         if ($response === false) {
             throw new \RuntimeException("Erro curl (start): " . curl_error($ch));
         }

@@ -3,9 +3,11 @@ FROM php:8.3-apache
 # Ativa rewrite
 RUN a2enmod rewrite
 
-# Instala dependências do PostgreSQL + PDO
+# Instala dependências do PostgreSQL + ffmpeg
 RUN apt-get update \
-    && apt-get install -y libpq-dev \
+    && apt-get install -y \
+        libpq-dev \
+        ffmpeg \
     && docker-php-ext-install pdo pdo_pgsql \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -22,7 +24,7 @@ RUN sed -ri \
 # Copia código
 COPY src/ /var/www/html/
 
-# Permissões
+# Permissões (necessário para uploads + ffmpeg)
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 

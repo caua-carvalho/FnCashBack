@@ -7,7 +7,7 @@ class GeminiAudioService
     private string $apiKey;
     private string $model;
 
-    public function __construct(string $apiKey, string $model = 'gemini-3-flash-preview')
+    public function __construct(string $apiKey, string $model = 'gemini-2.5-flash')
     {
         if (empty($apiKey)) {
             throw new \RuntimeException("GEMINI_API_KEY não definido");

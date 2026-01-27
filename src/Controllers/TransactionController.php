@@ -139,7 +139,7 @@ class TransactionController
         /**
          * Diretório do usuário
          */
-        $baseDir = __DIR__ . '/../uploads/audio/' . $userId;
+        $baseDir = APP_ROOT . '/uploads/audio/' . $userId;
 
         if (!is_dir($baseDir)) {
             error_log("[TransactionController::storeAudio] Criando diretório: {$baseDir}");

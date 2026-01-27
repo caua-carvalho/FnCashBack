@@ -205,10 +205,7 @@ class TransactionController
         /**
          * Response
          */
-        echo json_encode([
-            'success' => true,
-            'data' => $transactionData
-        ]);
+        echo json_encode($transactionData);
     }
 
 

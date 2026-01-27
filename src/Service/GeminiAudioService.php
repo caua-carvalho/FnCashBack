@@ -15,24 +15,38 @@ class GeminiAudioService
 
         $this->apiKey = $apiKey;
         $this->model = $model;
+
+        error_log("[GeminiAudioService] Inicializado | model={$this->model}");
     }
 
-    /**
-     * Recebe o caminho de um arquivo de áudio e retorna o JSON interpretado pelo Gemini
-     */
     public function processAudio(string $audioPath): array
     {
-        if (!file_exists($audioPath)) {
-            throw new \RuntimeException("Arquivo de áudio não encontrado: $audioPath");
+        error_log("[GeminiAudioService] processAudio iniciado | path={$audioPath}");
+
+        if (!is_readable($audioPath)) {
+            throw new \RuntimeException("Arquivo não legível: {$audioPath}");
         }
 
         $mimeType = mime_content_type($audioPath);
-        $numBytes = filesize($audioPath);
-        $displayName = 'AUDIO';
+        if ($mimeType === false) {
+            throw new \RuntimeException("Falha ao detectar MIME type");
+        }
 
-        // === 1️⃣ Start resumable upload ===
-        $metadata = json_encode(['file' => ['display_name' => $displayName]]);
+        $numBytes = filesize($audioPath);
+        if ($numBytes <= 0) {
+            throw new \RuntimeException("Arquivo vazio");
+        }
+
+        error_log("[GeminiAudioService] Áudio OK | mime={$mimeType} | bytes={$numBytes}");
+
+        /**
+         * 1️⃣ Start resumable upload
+         */
+        error_log("[GeminiAudioService] Iniciando upload resumable");
+
+        $metadata = json_encode(['file' => ['display_name' => 'AUDIO']]);
         $ch = curl_init("https://generativelanguage.googleapis.com/upload/v1beta/files");
+
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => [
@@ -50,15 +64,26 @@ class GeminiAudioService
 
         $response = curl_exec($ch);
         if ($response === false) {
-            throw new \RuntimeException("Erro ao iniciar upload: " . curl_error($ch));
+            throw new \RuntimeException("Erro curl (start): " . curl_error($ch));
         }
 
-        if (!preg_match('/x-goog-upload-url:\s*(\S+)/i', $response, $matches)) {
-            throw new \RuntimeException("Não foi possível obter upload URL do Gemini");
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $headers = substr($response, 0, $headerSize);
+
+        error_log("[GeminiAudioService] Upload start headers:\n{$headers}");
+
+        if (!preg_match('/x-goog-upload-url:\s*(.+)/i', $headers, $matches)) {
+            throw new \RuntimeException("Upload URL não encontrada nos headers");
         }
+
         $uploadUrl = trim($matches[1]);
+        error_log("[GeminiAudioService] Upload URL obtida");
 
-        // === 2️⃣ Upload do arquivo ===
+        /**
+         * 2️⃣ Upload do arquivo
+         */
+        error_log("[GeminiAudioService] Enviando áudio");
+
         $ch = curl_init($uploadUrl);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
@@ -74,22 +99,50 @@ class GeminiAudioService
 
         $uploadResponse = curl_exec($ch);
         if ($uploadResponse === false) {
-            throw new \RuntimeException("Erro ao enviar áudio: " . curl_error($ch));
+            throw new \RuntimeException("Erro curl (upload): " . curl_error($ch));
+        }
+
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        error_log("[GeminiAudioService] Upload status={$status}");
+        error_log("[GeminiAudioService] Upload response={$uploadResponse}");
+
+        if ($status !== 200 && $status !== 201) {
+            throw new \RuntimeException("Falha no upload ({$status})");
         }
 
         $fileInfo = json_decode($uploadResponse, true);
-        if (!isset($fileInfo['file']['uri'])) {
-            throw new \RuntimeException("Upload falhou, URI do arquivo não retornada");
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException("JSON inválido no upload");
         }
-        $fileUri = $fileInfo['file']['uri'];
 
-        // === 3️⃣ Chamada para gerar conteúdo a partir do arquivo ===
+        if (!isset($fileInfo['file']['uri'])) {
+            throw new \RuntimeException("URI do arquivo não retornada");
+        }
+
+        $fileUri = $fileInfo['file']['uri'];
+        error_log("[GeminiAudioService] Upload concluído | uri={$fileUri}");
+
+        /**
+         * 3️⃣ generateContent
+         */
+        error_log("[GeminiAudioService] Chamando Gemini generateContent");
+
         $payload = [
             "contents" => [
                 [
                     "parts" => [
-                        ["text" => "Interprete este áudio e retorne apenas e exclusivamente um JSON, nao quero que tenha texto adicional, com amount, category ('Alimentação' | 'Transporte' | 'Compras' | 'Contas' | 'Saúde'), type('expense' | 'income'), date (mostre de forma indexada, exemplo, hoje = 0, ontem = -1, amanha = 1, caso o audio nao tenha data, presuma 0), description e confidence"],
-                        ["file_data" => ["mime_type" => $mimeType, "file_uri" => $fileUri]]
+                        [
+                            "text" =>
+                                "Retorne exclusivamente um JSON válido, sem markdown ou texto extra, " .
+                                "com campos: amount, category (Alimentação|Transporte|Compras|Contas|Saúde), " .
+                                "type (expense|income), date (hoje=0, ontem=-1, amanhã=1), description, confidence"
+                        ],
+                        [
+                            "file_data" => [
+                                "mime_type" => $mimeType,
+                                "file_uri" => $fileUri
+                            ]
+                        ]
                     ]
                 ]
             ]
@@ -109,38 +162,55 @@ class GeminiAudioService
 
         $response = curl_exec($ch);
         if ($response === false) {
-            throw new \RuntimeException("Erro ao chamar Gemini: " . curl_error($ch));
+            throw new \RuntimeException("Erro curl (generate): " . curl_error($ch));
         }
 
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        error_log("[GeminiAudioService] generateContent status={$status}");
+        error_log("[GeminiAudioService] generateContent response={$response}");
+
         if ($status !== 200) {
-            throw new \RuntimeException("Gemini retornou HTTP {$status}: {$response}");
+            throw new \RuntimeException("Gemini retornou HTTP {$status}");
         }
 
-        // === 4️⃣ Extrair JSON do texto retornado pelo modelo ===
+        /**
+         * 4️⃣ Extração robusta do JSON
+         */
         $responseData = json_decode($response, true);
         $text = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
-        $cleanJson = trim(str_replace(['```json', '```'], '', $text));
-        $data = json_decode($cleanJson, true);
+        error_log("[GeminiAudioService] Texto retornado pelo modelo: {$text}");
 
-        if (!is_array($data)) {
-            echo "Resposta do Gemini: " . $text . "\n";
-            throw new \RuntimeException("Falha ao decodificar JSON retornado pelo Gemini");
+        if (!preg_match('/\{.*\}/s', $text, $matches)) {
+            throw new \RuntimeException("JSON não encontrado na resposta");
         }
 
-        // === 5️⃣ Converter campo date indexado em data real ===
+        $data = json_decode($matches[0], true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException("JSON inválido retornado pelo Gemini");
+        }
+
+        error_log("[GeminiAudioService] JSON decodificado com sucesso");
+
+        /**
+         * 5️⃣ Normalização
+         */
         if (isset($data['date']) && is_numeric($data['date'])) {
-            $dayOffset = (int) $data['date'];
-            $data['date'] = (new \DateTime())->modify("{$dayOffset} day")->format('Y-m-d');
+            $offset = (int) $data['date'];
+            $data['date'] = (new \DateTimeImmutable())
+                ->modify(($offset >= 0 ? '+' : '') . "{$offset} day")
+                ->format('Y-m-d');
+        } else {
+            $data['date'] = (new \DateTime())->format('Y-m-d');
         }
 
-        // === 6️⃣ Garantir campos obrigatórios para salvar no banco ===
-        $data['amount'] = $data['amount'] ?? 0; // ou lance exceção se obrigatório
+        $data['amount'] = (float) ($data['amount'] ?? 0);
         $data['category'] = $data['category'] ?? 'Outros';
         $data['type'] = $data['type'] ?? 'expense';
         $data['description'] = $data['description'] ?? '';
-        $data['confidence'] = $data['confidence'] ?? 0;
+        $data['confidence'] = (float) ($data['confidence'] ?? 0);
+
+        error_log("[GeminiAudioService] Processamento finalizado com sucesso");
 
         return $data;
     }

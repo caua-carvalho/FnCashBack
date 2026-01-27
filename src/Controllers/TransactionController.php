@@ -105,12 +105,8 @@ class TransactionController
 
         $file = $_FILES['audio'];
 
-        error_log('[TransactionController::storeAudio] Arquivo recebido', [
-            'name' => $file['name'],
-            'type' => $file['type'],
-            'size' => $file['size'],
-            'error' => $file['error']
-        ]);
+        error_log('[TransactionController][storeAudio] FILE: ' . json_encode($_FILES));
+
 
         if ($file['error'] !== UPLOAD_ERR_OK) {
             error_log('[TransactionController::storeAudio] Erro no upload | code=' . $file['error']);

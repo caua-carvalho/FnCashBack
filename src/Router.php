@@ -47,27 +47,33 @@ class Router
     public function dispatch(): void
     {
         $method = $_SERVER['REQUEST_METHOD'];
+
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
-        $uri = '/' . trim(str_replace($scriptDir, '', $uri), '/');
+        $uri = rtrim($uri, '/');
+
+        if ($uri === '') {
+            $uri = '/';
+        }
 
         $handler = $this->routes[$method][$uri] ?? null;
 
         if (!$handler) {
             http_response_code(404);
-            echo '404 - Rota não encontrada';
+            echo json_encode([
+                'error' => 'Rota não encontrada',
+                'method' => $method,
+                'uri' => $uri
+            ]);
             return;
         }
 
-        // Se for Controller + método
         if (is_array($handler)) {
             [$controller, $methodName] = $handler;
-            $instance = new $controller();
-            $instance->$methodName();
+            (new $controller())->$methodName();
             return;
         }
 
-        // Se for função anônima
         call_user_func($handler);
     }
+
 }

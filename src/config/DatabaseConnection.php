@@ -1,5 +1,5 @@
 <?php
-require_once 'Database.php';
+require_once APP_ROOT . '/config/Database.php';
 /**
  * Gerenciador de Conexão com Banco de Dados
  * Implementa o padrão Singleton para garantir uma única conexão

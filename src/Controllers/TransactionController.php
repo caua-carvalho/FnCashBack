@@ -141,7 +141,7 @@ class TransactionController
 
         // Processa o áudio com Gemini
         try {
-            require_once APP_ROOT . '/../Service/GeminiAudioService.php';
+            require_once APP_ROOT . '/Service/GeminiAudioService.php';
             $gemini = new \App\Service\GeminiAudioService('AIzaSyBNDFDofopjw3uzzcQ-pTWguDil89qzrBU');
             $transactionData = $gemini->processAudio($filepath);
         } catch (\Throwable $e) {

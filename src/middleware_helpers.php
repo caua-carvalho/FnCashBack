@@ -1,6 +1,6 @@
 <?php
 // Helper para aplicar o middleware JWT em rotas protegidas
-require_once __DIR__ . '/jwt_middleware.php';
+require_once APP_ROOT . '/jwt_middleware.php';
 
 /**
  * Envolve um handler de rota com o middleware de autenticação JWT.

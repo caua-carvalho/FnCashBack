@@ -1,8 +1,8 @@
 <?php
 // Middleware para validar JWT e fornecer informações do usuário autenticado
 // Inclua este arquivo antes de rotas que precisam de autenticação
-require_once __DIR__ . '/jwt_utils.php';
-require_once __DIR__ . '/config/EnvLoader.php';
+require_once APP_ROOT . '/jwt_utils.php';
+require_once APP_ROOT . '/config/EnvLoader.php';
 
 /**
  * Middleware que valida o JWT do header Authorization.

@@ -14,7 +14,6 @@ require_once APP_ROOT . '/jwt_middleware.php';
  */
 function withAuth(array $handler)
 {
-    echo 'Applying JWT middleware to protected route.';
     return function () use ($handler) {
         return jwtMiddleware(function () use ($handler) {
 

@@ -2,7 +2,15 @@
 // Middleware para validar JWT e fornecer informações do usuário autenticado
 // Inclua este arquivo antes de rotas que precisam de autenticação
 require_once APP_ROOT . '/jwt_utils.php';
-require_once APP_ROOT . '/config/EnvLoader.php';
+// --------------------
+// ENV
+// --------------------
+require_once APP_ROOT . '/vendor/autoload.php';
+
+// Carrega env
+$dotenv = Dotenv\Dotenv::createImmutable(APP_ROOT);
+$dotenv->load();
+
 
 /**
  * Middleware que valida o JWT do header Authorization.
@@ -13,7 +21,7 @@ require_once APP_ROOT . '/config/EnvLoader.php';
  * @return mixed
  */
 function jwtMiddleware($next) {
-    $secret = $_ENV['JWT_SECRET'] ?? 'changeme';
+    $secret = $_ENV['JWT_SECRET'];
     $token = getBearerToken();
     if (!$token) {
         http_response_code(401);

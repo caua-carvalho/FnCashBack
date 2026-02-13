@@ -29,12 +29,11 @@ final class DatabaseConfig
 
     private function buildFromEnv(string $defaultDb): array
     {
-        $host = getenv('DB_HOST');
-        $user = getenv('DB_USER');
-        $pass = getenv('DB_PASSWORD');
-        $db   = getenv('DB_NAME') ?: $defaultDb;
-        $port = (int)(getenv('DB_PORT') ?: 5432);
-
+        $host = $_ENV['DB_HOST'] ?? '';
+        $user = $_ENV['DB_USER'] ?? '';
+        $pass = $_ENV['DB_PASSWORD'] ?? '';
+        $db   = $_ENV['DB_NAME'] ?? $defaultDb;
+        $port = (int)($_ENV['DB_PORT'] ?? 5432);
         // 🔥 DEBUG E FAIL FAST
         $missing = [];
         foreach ([

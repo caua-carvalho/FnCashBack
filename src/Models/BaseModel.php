@@ -55,6 +55,25 @@ abstract class BaseModel {
     }
 
     /**
+     * Busca todos os registros de um usuário
+     * @param string $userId
+     * @return array
+    */
+    public function findByEmail(string $email): ?array
+    {
+        $query = "SELECT * FROM {$this->table} WHERE email = ? LIMIT 1";
+
+        $result = DatabaseConnection::getInstance()
+            ->fetch($query, [$email]);
+
+        if (!$result) {
+            return null;
+        }
+
+        return $this->formatResult($result);
+    }
+
+    /**
      * Busca todos os registros da tabela
      * @param int|null $limit
      * @param int $offset

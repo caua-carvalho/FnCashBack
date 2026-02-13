@@ -17,12 +17,6 @@ class TransactionController
     {
         $user = $GLOBALS['auth_user'] ?? null;
         
-        if (!$user || !isset($user['id'])) {
-            http_response_code(401);
-            echo json_encode($user);
-            echo json_encode(['error' => 'Usuário não autenticado', 'user' => $user]);
-            return;
-        } 
         $transactions = $this->model->findByUser($user['id']);
         header('Content-Type: application/json');
         echo json_encode($transactions);

@@ -16,9 +16,7 @@ class UserModel extends BaseModel {
         'email', 'password_hash', 'name'
     ];
     // Campos ocultos ao retornar dados
-    protected $hidden = [
-        'password_hash'
-    ];
+    protected $hidden = [];
     // Controla timestamps automáticos
     protected $timestamps = true;
 }
